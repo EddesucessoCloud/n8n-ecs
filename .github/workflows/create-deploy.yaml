@@ -1,0 +1,58 @@
+name: Deploy Portfolio with Terraform
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  AWS_REGION: "us-east-1" 
+  S3_BUCKET: "daniel-resumewebsite" 
+
+permissions:
+  id-token: write
+  contents: read    
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::211125482456:role/GitHubAction-AssumeRoleWithAction
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: infra
+        run: terraform plan
+
+      - name: Terraform Apply
+        working-directory: infra
+        run: terraform apply -auto-approve
+      
+      - name: Terraform Outputs
+        id: tf_outputs
+        working-directory: infra
+        run: |
+          url=$(terraform output -raw elb_base_url 2>/dev/null | tr -d '\n' | xargs)
+          echo "CLOUDFRONT_URL=$url" >> $GITHUB_ENV
+
+
+
+
+
